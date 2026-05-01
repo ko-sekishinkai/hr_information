@@ -1,0 +1,56 @@
+name: Streamlit Ultra Keep Alive
+
+on:
+  schedule:
+    - cron: '0 * * * *'  # 1時間に1回実行
+    - cron: '0 3 * * 1'  # 月曜のAM3時にダミー更新
+  workflow_dispatch:
+
+jobs:
+  wake_up:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: |
+          pip install playwright
+          playwright install chromium
+
+      - name: Wake up Streamlit App
+        run: |
+          python -c "
+          from playwright.sync_api import sync_playwright
+          import time
+
+          with sync_playwright() as p:
+              browser = p.chromium.launch()
+              page = browser.new_page()
+              print('Accessing app...')
+              page.goto('https://hr-information.streamlit.app/', wait_until='networkidle')
+              
+              # 『Yes, get this app back up!』ボタンが表示されている場合はクリック
+              if page.locator('text=Yes, get this app back up!').is_visible():
+                  print('Clicking wake up button...')
+                  page.click('text=Yes, get this app back up!')
+                  page.wait_for_timeout(10000) # 起動まで少し待機
+              
+              print('App status:', page.title())
+              browser.close()
+          "
+
+      - name: Auto Update (Keep Active)
+        if: github.event.schedule == '0 3 * * 1'
+        run: |
+          date > last_keep_alive.txt
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add last_keep_alive.txt
+          git commit -m "Keep-alive: Periodic activity update"
+          git push
