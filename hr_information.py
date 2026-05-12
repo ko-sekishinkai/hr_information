@@ -1,9 +1,38 @@
 import streamlit as st
 import pandas as pd
 
-
 # --- 設定は必ず一番最初に行う ---
 st.set_page_config(page_title="人事情報", layout="wide")
+
+# --- 【追加】認証機能 ---
+def check_password():
+    """パスワードが正しいか確認し、結果を返す"""
+    def password_entered():
+        """入力されたパスワードを検証する"""
+        if st.session_state["password"] == st.secrets["app_password"]:
+            st.session_state["password_correct"] = True
+            del st.session_state["password"]  # セキュリティのため入力欄から削除
+        else:
+            st.session_state["password_correct"] = False
+
+    # 初回アクセス時
+    if "password_correct" not in st.session_state:
+        st.text_input("パスワードを入力してください", type="password", on_change=password_entered, key="password")
+        return False
+    # パスワードが間違っている場合
+    elif not st.session_state["password_correct"]:
+        st.text_input("パスワードが違います。再入力してください", type="password", on_change=password_entered, key="password")
+        st.error("😕 パスワードが正しくありません")
+        return False
+    else:
+        # パスワード正解
+        return True
+
+# 認証チェックを実行
+if not check_password():
+    st.stop()  # 正解するまでこれ以降のコードを実行しない
+
+# --- 以下、既存のデータ読み込み・表示処理 ---
 
 # --- 【修正ポイント1】読み込み処理の変更 ---
 @st.cache_data
